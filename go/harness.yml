@@ -1,0 +1,76 @@
+pipeline:
+  name: CI/CD Pipeline
+  identifier: ci_cd_pipeline
+  projectIdentifier: your_project_id   # Replace this with your reference
+  orgIdentifier: your_org_id           # Replace this with your reference
+  tags: {}
+
+  stages:
+    - stage:
+        name: Test Stage
+        identifier: test_stage
+        type: CI
+        spec:
+          cloneCodebase: true
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: your_k8s_connector_ref  # Replace this with your reference
+              namespace: your_ci_namespace          # Replace this with your reference
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Test
+                  identifier: test
+                  spec:
+                    image: artifactory.gcp.shipttech.com/devops/golang:1.24-rockylinux9.3
+                    shell: Sh
+                    command: |
+                      go test --coverprofile=coverage.txt ./...
+              - step:
+                  type: BuildAndPushDockerRegistry
+                  name: Build and Push Docker Image
+                  identifier: build_and_push_docker_image
+                  spec:
+                    connectorRef: your_docker_registry_connector  # Replace this with your reference
+                    repository: your_registry/my-app              # Replace this with your reference
+                    tags:
+                      - latest
+                    context: .
+                    dockerfile: Dockerfile
+
+    - stage:
+        name: Deploy to GKE
+        identifier: deploy_to_gke
+        type: CD
+        spec:
+          infrastructure:
+            type: KubernetesDirect
+            spec:
+              connectorRef: your_k8s_connector_ref    # Replace this with your reference  
+              namespace: your_deployment_namespace    # Replace this with your reference
+          execution:
+            steps:
+              - step:
+                  type: K8sRollingDeploy
+                  name: Deploy
+                  identifier: deploy
+                  spec:
+                    skipDryRun: false
+                    timeout: 10m
+                    manifests:
+                      primary:
+                        type: K8sManifest
+                        spec:
+                          store:
+                            type: Git
+                            spec:
+                              connectorRef: your_git_connector    # Replace this with your reference
+                              branch: main
+                              paths:
+                                - k8s/deployment.yaml
+                                - k8s/service.yaml
+                    values:
+                      - name: image.tag
+                        value: latest
