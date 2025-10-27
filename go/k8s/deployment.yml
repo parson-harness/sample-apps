@@ -1,20 +1,63 @@
-# deployment.yaml
+# k8s/deployment.yml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-app
+  name: go-demo-app
+  labels:
+    app: go-demo-app
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
-      app: my-app
+      app: go-demo-app
   template:
     metadata:
       labels:
-        app: my-app
+        app: go-demo-app
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
       containers:
-        - name: my-app
-          image: your-registry/my-app:latest
+        - name: go-demo-app
+          image: ${DOCKER_IMAGE}:${DOCKER_TAG}
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
+          env:
+            - name: APP_VERSION
+              value: "${APP_VERSION}"
+            - name: APP_ENV
+              value: "${ENVIRONMENT}"
+            - name: BUILD_TIME
+              value: "${BUILD_TIME}"
+            - name: PORT
+              value: "8080"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      terminationGracePeriodSeconds: 20

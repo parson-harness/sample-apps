@@ -1,23 +1,30 @@
-# Start from the official golang base image
-FROM golang:1.20-alpine
+# --- build stage ---
+ARG REGISTRY_OVERRIDE=docker.io
+ARG GO_VERSION=1.25.3
+FROM ${REGISTRY_OVERRIDE}/golang:${GO_VERSION}-alpine AS build
 
-# Set the Current Working Directory inside the container
-WORKDIR /app
+# Ensure auto toolchain stays enabled if you later bump 'go' in go.mod
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOTOOLCHAIN=auto
 
-# Copy go mod and sum files
+WORKDIR /src
 COPY go.mod go.sum ./
+# (If using BuildKit, these cache mounts help; safe to keep even if ignored)
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download
 
-# Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
-RUN go mod download
-
-# Copy the source from the current directory to the Working Directory inside the container
 COPY . .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -o /out/app \
+      -ldflags "-s -w -X 'main.version=${APP_VERSION:-dev}' -X 'main.env=${APP_ENV:-dev}' -X 'main.buildTime=${BUILD_TIME:-unknown}'" \
+      .
 
-# Build the Go app
-RUN go build -o main .
-
-# Expose port 8080 to the outside world
+# --- runtime stage ---
+FROM gcr.io/distroless/base-debian12
+WORKDIR /
+COPY --from=build /out/app /app
+ENV PORT=8080
 EXPOSE 8080
-
-# Command to run the executable
-CMD ["./main"]
+USER 65532:65532
+ENTRYPOINT ["/app"]

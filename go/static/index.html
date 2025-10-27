@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Harness Demo App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+	<img src="/static/harness-logo.png" alt="Harness Logo" class="logo" />
+    <h1>Harness Demo App</h1>
+    <p class="subtitle">Build/runtime metadata & health</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>App Info</h2>
+      <div id="app-info" class="grid"></div>
+      <div id="error" class="error" hidden></div>
+    </section>
+
+    <section class="card">
+      <h2>Health</h2>
+      <div class="grid">
+        <div class="info-item"><div class="info-label">Liveness:</div><div id="live-status">—</div></div>
+        <div class="info-item"><div class="info-label">Readiness:</div><div id="ready-status">—</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Endpoints</h2>
+      <ul>
+        <li><a href="/api/info" target="_blank">/api/info</a></li>
+        <li><a href="/health" target="_blank">/health</a></li>
+        <li><a href="/live" target="_blank">/live</a></li>
+        <li><a href="/ready" target="_blank">/ready</a></li>
+        <li><a href="/metrics" target="_blank">/metrics</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <small>© Demo app for CI/CD, IDP & Observability</small>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

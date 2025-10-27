@@ -1,0 +1,15 @@
+# k8s/servicemonitor.yml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: go-demo-app
+  labels:
+    app: go-demo-app
+spec:
+  selector:
+    matchLabels:
+      app: go-demo-app
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

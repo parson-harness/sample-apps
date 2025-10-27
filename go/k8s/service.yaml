@@ -1,13 +1,20 @@
-# service.yaml
+# k8s/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-app-service
+  name: go-demo-app
+  labels:
+    app: go-demo-app
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
 spec:
   type: LoadBalancer
   selector:
-    app: my-app
+    app: go-demo-app
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 80
       targetPort: 8080

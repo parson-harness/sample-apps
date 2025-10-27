@@ -22,24 +22,63 @@ pipeline:
               - step:
                   type: Run
                   name: Test
-                  identifier: test
+                  identifier: Test
                   spec:
-                    image: artifactory.gcp.shipttech.com/devops/golang:1.24-rockylinux9.3
-                    shell: Sh
-                    command: |
+                    registryRef: proj-harpov-docker-dev
+                    image: parsontodd/harness-custom-runner
+                    shell: Bash
+                    command: |-
+                      env
+                      set -euo pipefail
+                      go version
                       go test --coverprofile=coverage.txt ./...
+                      ls -lat
+              - step:
+                  type: Run
+                  name: Linting
+                  identifier: Linting
+                  spec:
+                    registryRef: proj-harpov-docker-dev
+                    image: parsontodd/harness-custom-runner:latest
+                    shell: Bash
+                    command: |-
+                      set -euo pipefail
+                      ls -laR /harness
+                      golangci-lint version
+                      golangci-lint run --timeout 5m0s --out-format checkstyle --issues-exit-code 0 > report.xml
+                    reports:
+                      type: JUnit
+                      spec:
+                        paths:
+                          - report.xml
+              - step:
+                  type: Run
+                  name: SAST
+                  identifier: Gosec
+                  spec:
+                    connectorRef: harnessdockerhub
+                    image: parsontodd/harness-custom-runner:latest
+                    shell: Bash
+                    command: |-
+                      set -euo pipefail
+                      gosec -no-fail -fmt=sonarqube -out report.json ./...
+                    reports:
+                      type: JUnit
+                      spec:
+                        paths:
+                          - report.json              
               - step:
                   type: BuildAndPushDockerRegistry
                   name: Build and Push Docker Image
                   identifier: build_and_push_docker_image
                   spec:
-                    connectorRef: your_docker_registry_connector  # Replace this with your reference
-                    repository: your_registry/my-app              # Replace this with your reference
+                    repo: go-sample-app              # Replace this with your reference
                     tags:
                       - latest
-                    context: .
-                    dockerfile: Dockerfile
-
+                    caching: true
+                    buildArgs:
+                      REGISTRY_OVERRIDE: <+pipeline.variables.BASE_IMAGE_REGISTRY>
+                      GO_VERSION: <+pipeline.variables.GO_VERSION>
     - stage:
         name: Deploy to GKE
         identifier: deploy_to_gke
