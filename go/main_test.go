@@ -4,10 +4,11 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
-func TestHelloHandler(t *testing.T) {
+func TestHomeHandler(t *testing.T) {
 	// Create a request to pass to our handler
 	req, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
@@ -16,7 +17,7 @@ func TestHelloHandler(t *testing.T) {
 
 	// Create a ResponseRecorder to record the response
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(helloHandler)
+	handler := http.HandlerFunc(homeHandler)
 
 	// Call the handler directly, passing in the request and response recorder
 	handler.ServeHTTP(rr, req)
@@ -27,10 +28,8 @@ func TestHelloHandler(t *testing.T) {
 			status, http.StatusOK)
 	}
 
-	// Check the response body
-	expected := "Hello, World!"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+	// Check that response contains expected HTML content
+	if !strings.Contains(rr.Body.String(), "Harness Demo App") {
+		t.Errorf("handler did not return expected HTML content")
 	}
 }
