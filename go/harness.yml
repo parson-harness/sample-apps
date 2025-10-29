@@ -24,8 +24,8 @@ pipeline:
                   name: Test
                   identifier: Test
                   spec:
-                    registryRef: proj-harpov-docker-dev
-                    image: parsontodd/harness-custom-runner
+                    registryRef: proj-harpov-docker-dev           # Replace this with your reference
+                    image: parsontodd/harness-custom-runner       # Replace this with your reference
                     shell: Bash
                     command: |-
                       env
