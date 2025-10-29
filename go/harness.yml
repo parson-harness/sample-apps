@@ -1,7 +1,7 @@
 pipeline:
   name: CI/CD Pipeline
   identifier: ci_cd_pipeline
-  projectIdentifier: your_project_id   # Replace this with your reference. Testing.
+  projectIdentifier: your_project_id   # Replace this with your reference.
   orgIdentifier: your_org_id           # Replace this with your reference
   tags: {}
 
