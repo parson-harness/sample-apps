@@ -1,0 +1,18 @@
+# Ignore unnecessary files to shrink build context
+.git
+.vscode
+.windsurf
+**/.DS_Store
+**/.idea
+**/.vscode
+**/*.log
+**/*.tmp
+**/*.swp
+**/coverage*
+**/build
+**/dist
+Dockerfile*
+README*
+LICENSE
+harness.yml
+k8s/

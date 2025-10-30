@@ -1,14 +1,19 @@
-# k8s/servicemonitor.yml
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: go-demo-app
   labels:
-    app: go-demo-app
+    app.kubernetes.io/name: go-demo-app
+    app.kubernetes.io/instance: go-demo-app
 spec:
   selector:
     matchLabels:
-      app: go-demo-app
+      app.kubernetes.io/name: go-demo-app
+      app.kubernetes.io/instance: go-demo-app
+  # If Prometheus Operator is in another namespace, uncomment and set:
+  # namespaceSelector:
+  #   matchNames:
+  #     - <service-namespace>
   endpoints:
     - port: http
       path: /metrics

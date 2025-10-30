@@ -1,10 +1,10 @@
-# k8s/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: go-demo-app
   labels:
-    app: go-demo-app
+    app.kubernetes.io/name: go-demo-app
+    app.kubernetes.io/instance: go-demo-app
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
@@ -12,7 +12,8 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
-    app: go-demo-app
+    app.kubernetes.io/name: go-demo-app
+    app.kubernetes.io/instance: go-demo-app
   ports:
     - name: http
       protocol: TCP

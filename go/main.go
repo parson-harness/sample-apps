@@ -32,6 +32,7 @@ var indexHTML []byte
 type AppInfo struct {
 	Name        string `json:"name"`
 	Version     string `json:"version"`
+	Commit      string `json:"commit"` // NEW
 	Environment string `json:"environment"`
 	BuildTime   string `json:"buildTime"`
 	Uptime      string `json:"uptime"`
@@ -40,10 +41,11 @@ type AppInfo struct {
 
 var (
 	startTime  = time.Now()
-	version    = getenv("APP_VERSION", "1.0.0")
+	version    = getenv("APP_VERSION", "1.0.0") // overridden by -ldflags main.version
 	env        = getenv("APP_ENV", "development")
-	buildTime  = os.Getenv("BUILD_TIME") // optionally set via ldflags
-	readyAfter = 2 * time.Second         // small warm-up for readiness
+	buildTime  = os.Getenv("BUILD_TIME") // overridden by -ldflags main.buildTime
+	commit     = "unknown"               // overridden by -ldflags main.commit  // NEW
+	readyAfter = 2 * time.Second
 	logger     = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 )
 
@@ -66,20 +68,33 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.StripPrefix("/static/", staticHandler))
+
 	mux.Handle("/", chain(http.HandlerFunc(homeHandler), withSecurityHeaders(), withLogging()))
 	mux.Handle("/api/info", chain(http.HandlerFunc(infoHandler), withSecurityHeaders(), withLogging()))
+	mux.Handle("/version", chain(http.HandlerFunc(versionHandler), withSecurityHeaders(), withLogging()))
+
+	// Existing probe paths
 	mux.Handle("/health", chain(http.HandlerFunc(healthHandler), withSecurityHeaders(), withLogging()))
 	mux.Handle("/live", chain(http.HandlerFunc(liveHandler), withSecurityHeaders(), withLogging()))
 	mux.Handle("/ready", chain(http.HandlerFunc(readyHandler), withSecurityHeaders(), withLogging()))
+
+	// Kube-style aliases (no change to handlers)
+	mux.Handle("/healthz", chain(http.HandlerFunc(healthHandler), withSecurityHeaders(), withLogging()))
+	mux.Handle("/livez", chain(http.HandlerFunc(liveHandler), withSecurityHeaders(), withLogging()))
+	mux.Handle("/readyz", chain(http.HandlerFunc(readyHandler), withSecurityHeaders(), withLogging()))
+
 	mux.Handle("/metrics", promhttp.Handler())
 
 	srv := &http.Server{
 		Addr:              ":" + port,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second, // NEW
+		WriteTimeout:      10 * time.Second, // NEW
+		IdleTimeout:       60 * time.Second, // NEW
 	}
 
-	logger.Info("server starting", "port", port, "version", version, "env", env, "buildTime", buildTime)
+	logger.Info("server starting", "port", port, "commit", commit, "version", version, "env", env, "buildTime", buildTime)
 
 	// start server
 	go func() {
@@ -109,6 +124,20 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = io.Copy(w, bytesReader(indexHTML))
+}
+func versionHandler(w http.ResponseWriter, r *http.Request) {
+	hostname, _ := os.Hostname()
+	info := AppInfo{
+		Name:        "Harness Demo App",
+		Version:     version,
+		Commit:      commit,
+		Environment: env,
+		BuildTime:   buildTime,
+		Uptime:      time.Since(startTime).Truncate(time.Second).String(),
+		Hostname:    hostname,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(info)
 }
 
 func infoHandler(w http.ResponseWriter, r *http.Request) {
@@ -156,21 +185,6 @@ func fsSub(dir string) (fs.FS, error) {
 
 func bytesReader(b []byte) io.Reader { return bytes.NewReader(b) }
 
-func withLogging() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
-			next.ServeHTTP(w, r)
-			slog.Default().Info("request",
-				"method", r.Method,
-				"path", r.URL.Path,
-				"remote", r.RemoteAddr,
-				"dur_ms", time.Since(start).Milliseconds(),
-			)
-		})
-	}
-}
-
 func withSecurityHeaders() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -188,4 +202,38 @@ func chain(h http.Handler, mws ...func(http.Handler) http.Handler) http.Handler 
 		h = mws[i](h)
 	}
 	return h
+}
+
+type rwCapture struct {
+	http.ResponseWriter
+	status int
+	size   int
+}
+
+func (w *rwCapture) WriteHeader(code int) { w.status = code; w.ResponseWriter.WriteHeader(code) }
+func (w *rwCapture) Write(b []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	n, err := w.ResponseWriter.Write(b)
+	w.size += n
+	return n, err
+}
+
+func withLogging() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			cw := &rwCapture{ResponseWriter: w}
+			next.ServeHTTP(cw, r)
+			slog.Default().Info("request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"status", cw.status,
+				"bytes", cw.size,
+				"remote", r.RemoteAddr,
+				"dur_ms", time.Since(start).Milliseconds(),
+			)
+		})
+	}
 }
