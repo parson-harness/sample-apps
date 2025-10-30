@@ -19,7 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Embed everything under static/
+// Testing Embed everything under static/
 //
 //go:embed static/*
 var embeddedFS embed.FS
